@@ -1,29 +1,45 @@
 package pl.matkan.computerapp;
 
+import org.springframework.hateoas.CollectionModel;
+import org.springframework.hateoas.EntityModel;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.stream.Collectors;
+
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
 
 @RestController
 @RequestMapping("api/computer")
 public class ComputerController {
     private final ComputerRepository computerRepository;
+    private final ComputerModelAssembler assembler;
 
-    public ComputerController(ComputerRepository computerRepository) {
+    public ComputerController(ComputerRepository computerRepository, ComputerModelAssembler assembler) {
         this.computerRepository = computerRepository;
+        this.assembler = assembler;
     }
 
 
     @GetMapping("/all")
-    public List<Computer> getAll(){
-        return computerRepository.findAll();
+    public CollectionModel<EntityModel<Computer>> getAll(){
+        List<EntityModel<Computer>> computers =  computerRepository.findAll().stream()
+                .map(assembler::toModel)
+                .collect(Collectors.toList());
+
+        return CollectionModel.of(computers, linkTo(methodOn(ComputerController.class).getAll()).withSelfRel());
     }
 
-    @GetMapping("/one/{id}")
-    public Computer getOne(@PathVariable Long id){
-        return computerRepository.findById(id)
+    @GetMapping("/{id}")
+    public EntityModel<Computer> getOne(@PathVariable Long id){
+        Computer computer = computerRepository.findById(id)
                 .orElseThrow(() -> new ComputerNotFoundException(id));
+
+        return assembler.toModel(computer);
+
+
     }
 
     @PostMapping("/add")
